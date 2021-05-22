@@ -12,7 +12,7 @@ final class Operation
         protected string $type,
         protected ?string $name,
         protected \Graphpinator\Type\Type $rootObject,
-        protected \Graphpinator\Normalizer\Field\FieldSet $children,
+        protected \Graphpinator\Normalizer\Selection\SelectionSet $children,
         protected \Graphpinator\Normalizer\Variable\VariableSet $variables,
         protected \Graphpinator\Normalizer\Directive\DirectiveSet $directives,
     ) {}
@@ -27,7 +27,7 @@ final class Operation
         return $this->rootObject;
     }
 
-    public function getFields() : \Graphpinator\Normalizer\Field\FieldSet
+    public function getSelections() : \Graphpinator\Normalizer\Selection\SelectionSet
     {
         return $this->children;
     }

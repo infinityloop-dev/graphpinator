@@ -14,18 +14,15 @@ final class Normalizer
     private \SplStack $scopeStack;
     private \Graphpinator\Parser\Fragment\FragmentSet $fragmentDefinitions;
     private \Graphpinator\Normalizer\Variable\VariableSet $variableSet;
-    private \Graphpinator\Normalizer\FragmentCycleValidator $fragmentCycleValidator;
 
     public function __construct(
         private \Graphpinator\Type\Schema $schema,
-    )
-    {
-        $this->fragmentCycleValidator = new FragmentCycleValidator();
-    }
+    ) {}
 
     public function normalize(\Graphpinator\Parser\ParsedRequest $parsedRequest) : NormalizedRequest
     {
-        $this->fragmentCycleValidator->validate($parsedRequest->getFragments());
+        $fragmentCycleValidator = new FragmentCycleValidator($parsedRequest->getFragments());
+        $fragmentCycleValidator->validate();
 
         $this->path = new \Graphpinator\Common\Path();
         $this->scopeStack = new \SplStack();
@@ -126,7 +123,7 @@ final class Normalizer
 
     private function normalizeFieldSet(
         \Graphpinator\Parser\Field\FieldSet $fieldSet,
-    ) : \Graphpinator\Normalizer\Field\FieldSet
+    ) : \Graphpinator\Normalizer\Selection\SelectionSet
     {
         $normalized = [];
 
@@ -136,18 +133,21 @@ final class Normalizer
             $this->path->pop();
         }
 
-        $return = new \Graphpinator\Normalizer\Field\FieldSet($normalized);
-
-        foreach ($this->normalizeFragmentSpreadSet($fieldSet->getFragmentSpreads()) as $fragmentSpread) {
-            $return->mergeFieldSet($this->scopeStack->top(), $fragmentSpread->getFields());
+        foreach ($fieldSet->getFragmentSpreads() as $fragmentSpread) {
+            $normalized[] = $this->normalizeFragmentSpread($fragmentSpread);
+            $this->path->pop();
+            $this->scopeStack->pop();
         }
 
-        return $return;
+        $result = new \Graphpinator\Normalizer\Selection\SelectionSet($normalized);
+        $selectionSetRefiner = new \Graphpinator\Normalizer\SelectionSetRefiner($result);
+
+        return $selectionSetRefiner->refine();
     }
 
     private function normalizeField(
         \Graphpinator\Parser\Field\Field $field,
-    ) : \Graphpinator\Normalizer\Field\Field
+    ) : \Graphpinator\Normalizer\Selection\Field
     {
         $parentType = $this->scopeStack->top();
 
@@ -170,7 +170,7 @@ final class Normalizer
 
         $this->scopeStack->pop();
 
-        return new \Graphpinator\Normalizer\Field\Field(
+        return new \Graphpinator\Normalizer\Selection\Field(
             $fieldDef,
             $field->getAlias()
                 ?? $fieldDef->getName(),
@@ -230,15 +230,9 @@ final class Normalizer
         }
 
         $arguments = $this->normalizeArgumentValueSet($directive->getArguments(), $directiveDef->getArguments());
-        $usageIsValid = match ($location) {
-            \Graphpinator\Directive\ExecutableDirectiveLocation::FIELD,
-            \Graphpinator\Directive\ExecutableDirectiveLocation::INLINE_FRAGMENT,
-            \Graphpinator\Directive\ExecutableDirectiveLocation::FRAGMENT_SPREAD =>
-                $directiveDef->validateFieldUsage($usage, $arguments),
-            default => true,
-        };
 
-        if (!$usageIsValid) {
+        if ($location === \Graphpinator\Directive\ExecutableDirectiveLocation::FIELD &&
+            !$directiveDef->validateFieldUsage($usage, $arguments)) {
             throw new \Graphpinator\Normalizer\Exception\DirectiveIncorrectUsage($directive->getName());
         }
 
@@ -282,24 +276,9 @@ final class Normalizer
         return new \Graphpinator\Value\ArgumentValueSet($items);
     }
 
-    private function normalizeFragmentSpreadSet(
-        \Graphpinator\Parser\FragmentSpread\FragmentSpreadSet $fragmentSpreadSet,
-    ) : \Graphpinator\Normalizer\FragmentSpread\FragmentSpreadSet
-    {
-        $normalized = [];
-
-        foreach ($fragmentSpreadSet as $fragmentSpread) {
-            $normalized[] = $this->normalizeFragmentSpread($fragmentSpread);
-            $this->path->pop();
-            $this->scopeStack->pop();
-        }
-
-        return new \Graphpinator\Normalizer\FragmentSpread\FragmentSpreadSet($normalized);
-    }
-
     private function normalizeFragmentSpread(
         \Graphpinator\Parser\FragmentSpread\FragmentSpread $fragmentSpread,
-    ) : \Graphpinator\Normalizer\FragmentSpread\FragmentSpread
+    ) : \Graphpinator\Normalizer\Selection\Selection
     {
         return match($fragmentSpread::class) {
             \Graphpinator\Parser\FragmentSpread\NamedFragmentSpread::class =>
@@ -311,7 +290,7 @@ final class Normalizer
 
     private function normalizeNamedFragmentSpread(
         \Graphpinator\Parser\FragmentSpread\NamedFragmentSpread $fragmentSpread,
-    ) : \Graphpinator\Normalizer\FragmentSpread\FragmentSpread
+    ) : \Graphpinator\Normalizer\Selection\FragmentSpread
     {
         $this->path->add($fragmentSpread->getName() . ' <fragment spread>');
 
@@ -326,27 +305,24 @@ final class Normalizer
             throw new \Graphpinator\Normalizer\Exception\TypeConditionOutputable();
         }
 
+        if (!$typeCond->isInstanceOf($this->scopeStack->top())) {
+            throw new \Graphpinator\Normalizer\Exception\InvalidFragmentType($typeCond->getName(), $this->scopeStack->top()->getName());
+        }
+
         $this->scopeStack->push($typeCond);
 
         $fields = $this->normalizeFieldSet($fragment->getFields());
+        $directives = $this->normalizeDirectiveSet(
+            $fragmentSpread->getDirectives(),
+            ExecutableDirectiveLocation::FRAGMENT_SPREAD,
+        );
 
-        foreach ($fields as $field) {
-            $directives = $this->normalizeDirectiveSet(
-                $fragmentSpread->getDirectives(),
-                ExecutableDirectiveLocation::FRAGMENT_SPREAD,
-                $field->getField(),
-            );
-
-            $field->getDirectives()->merge($directives);
-            $field->applyFragmentTypeCondition($typeCond);
-        }
-
-        return new \Graphpinator\Normalizer\FragmentSpread\FragmentSpread($fields);
+        return new \Graphpinator\Normalizer\Selection\FragmentSpread($fragmentSpread->getName(), $fields, $directives, $typeCond);
     }
 
     private function normalizeInlineFragmentSpread(
         \Graphpinator\Parser\FragmentSpread\InlineFragmentSpread $fragmentSpread,
-    ) : \Graphpinator\Normalizer\FragmentSpread\FragmentSpread
+    ) : \Graphpinator\Normalizer\Selection\InlineFragment
     {
         $this->path->add('<inline fragment>');
 
@@ -354,28 +330,27 @@ final class Normalizer
             ? $this->normalizeTypeRef($fragmentSpread->getTypeCond())
             : null;
 
-        if ($typeCond instanceof \Graphpinator\Type\Contract\NamedDefinition &&
-            !$typeCond instanceof \Graphpinator\Type\Contract\TypeConditionable) {
-            throw new \Graphpinator\Normalizer\Exception\TypeConditionOutputable();
-        }
+        if ($typeCond instanceof \Graphpinator\Type\Contract\NamedDefinition) {
+            if (!$typeCond instanceof \Graphpinator\Type\Contract\TypeConditionable) {
+                throw new \Graphpinator\Normalizer\Exception\TypeConditionOutputable();
+            }
 
-        $this->scopeStack->push($typeCond
-            ?? $this->scopeStack->top());
+            if (!$typeCond->isInstanceOf($this->scopeStack->top())) {
+                throw new \Graphpinator\Normalizer\Exception\InvalidFragmentType($typeCond->getName(), $this->scopeStack->top()->getName());
+            }
+
+            $this->scopeStack->push($typeCond);
+        } else {
+            $this->scopeStack->push($this->scopeStack->top());
+        }
 
         $fields = $this->normalizeFieldSet($fragmentSpread->getFields());
+        $directives = $this->normalizeDirectiveSet(
+            $fragmentSpread->getDirectives(),
+            ExecutableDirectiveLocation::INLINE_FRAGMENT,
+        );
 
-        foreach ($fields as $field) {
-            $directives = $this->normalizeDirectiveSet(
-                $fragmentSpread->getDirectives(),
-                ExecutableDirectiveLocation::INLINE_FRAGMENT,
-                $field->getField(),
-            );
-
-            $field->getDirectives()->merge($directives);
-            $field->applyFragmentTypeCondition($typeCond);
-        }
-
-        return new \Graphpinator\Normalizer\FragmentSpread\FragmentSpread($fields);
+        return new \Graphpinator\Normalizer\Selection\InlineFragment($fields, $directives, $typeCond);
     }
 
     private function normalizeTypeRef(

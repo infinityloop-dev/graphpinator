@@ -4,8 +4,10 @@ declare(strict_types = 1);
 
 namespace Graphpinator\Directive\Spec;
 
-final class IncludeDirective extends \Graphpinator\Directive\Directive
-    implements \Graphpinator\Directive\Contract\FieldLocation
+final class IncludeDirective extends \Graphpinator\Directive\Directive implements
+    \Graphpinator\Directive\Contract\FieldLocation,
+    \Graphpinator\Directive\Contract\InlineFragmentLocation,
+    \Graphpinator\Directive\Contract\FragmentSpreadLocation
 {
     protected const NAME = 'include';
     protected const DESCRIPTION = 'Built-in include directive.';
@@ -27,9 +29,37 @@ final class IncludeDirective extends \Graphpinator\Directive\Directive
             : \Graphpinator\Directive\FieldDirectiveResult::SKIP;
     }
 
+    public function resolveFragmentSpreadBefore(
+        \Graphpinator\Value\ArgumentValueSet $arguments,
+    ) : string
+    {
+        return $this->resolveFieldBefore($arguments);
+    }
+
+    public function resolveInlineFragmentBefore(
+        \Graphpinator\Value\ArgumentValueSet $arguments,
+    ) : string
+    {
+        return $this->resolveFieldBefore($arguments);
+    }
+
     public function resolveFieldAfter(
         \Graphpinator\Value\ArgumentValueSet $arguments,
         \Graphpinator\Value\FieldValue $fieldValue,
+    ) : string
+    {
+        return \Graphpinator\Directive\FieldDirectiveResult::NONE;
+    }
+
+    public function resolveFragmentSpreadAfter(
+        \Graphpinator\Value\ArgumentValueSet $arguments,
+    ) : string
+    {
+        return \Graphpinator\Directive\FieldDirectiveResult::NONE;
+    }
+
+    public function resolveInlineFragmentAfter(
+        \Graphpinator\Value\ArgumentValueSet $arguments,
     ) : string
     {
         return \Graphpinator\Directive\FieldDirectiveResult::NONE;

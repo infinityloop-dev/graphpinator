@@ -37,7 +37,7 @@ final class NormalizerTest extends \PHPUnit\Framework\TestCase
         $normalizer = new \Graphpinator\Normalizer\Normalizer(\Graphpinator\Tests\Spec\TestSchema::getSchema());
         $operation = $normalizer->normalize($parseResult)->getOperations()->current();
 
-        self::assertCount(0, $operation->getFields());
+        self::assertCount(0, $operation->getSelections());
         self::assertCount(2, $operation->getVariables());
         self::assertArrayHasKey('varName', $operation->getVariables());
         self::assertSame('varName', $operation->getVariables()->offsetGet('varName')->getName());
@@ -113,7 +113,7 @@ final class NormalizerTest extends \PHPUnit\Framework\TestCase
                     new \Graphpinator\Parser\TypeRef\NamedTypeRef('Query'),
                     new \Graphpinator\Parser\Directive\DirectiveSet(),
                     new \Graphpinator\Parser\Field\FieldSet([
-                        new \Graphpinator\Parser\Field\Field('fieldListInt'),
+                        new \Graphpinator\Parser\Field\Field('fieldList'),
                     ], new \Graphpinator\Parser\FragmentSpread\FragmentSpreadSet()),
                 ),
             ]),
@@ -123,24 +123,36 @@ final class NormalizerTest extends \PHPUnit\Framework\TestCase
         $operation = $normalizer->normalize($parseResult)->getOperations()->current();
 
         self::assertCount(0, $operation->getVariables());
-        self::assertCount(2, $operation->getFields());
+        self::assertCount(3, $operation->getSelections());
 
-        self::assertArrayHasKey(0, $operation->getFields());
-        self::assertSame('fieldAbc', $operation->getFields()->offsetGet(0)->getName());
-        self::assertCount(1, $operation->getFields()->offsetGet(0)->getDirectives());
-        self::assertArrayHasKey(0, $operation->getFields()->offsetGet(0)->getDirectives());
+        self::assertArrayHasKey(0, $operation->getSelections());
+        self::assertInstanceOf(\Graphpinator\Normalizer\Selection\Field::class, $operation->getSelections()->offsetGet(0));
+        self::assertSame('fieldAbc', $operation->getSelections()->offsetGet(0)->getName());
+        self::assertCount(1, $operation->getSelections()->offsetGet(0)->getDirectives());
+        self::assertArrayHasKey(0, $operation->getSelections()->offsetGet(0)->getDirectives());
         self::assertInstanceOf(
             \Graphpinator\Directive\Spec\SkipDirective::class,
-            $operation->getFields()->offsetGet(0)->getDirectives()->offsetGet(0)->getDirective(),
+            $operation->getSelections()->offsetGet(0)->getDirectives()->offsetGet(0)->getDirective(),
         );
 
-        self::assertArrayHasKey(1, $operation->getFields());
-        self::assertSame('fieldListInt', $operation->getFields()->offsetGet(1)->getName());
-        self::assertCount(1, $operation->getFields()->offsetGet(1)->getDirectives());
-        self::assertArrayHasKey(0, $operation->getFields()->offsetGet(1)->getDirectives());
+        self::assertArrayHasKey(1, $operation->getSelections());
+        self::assertInstanceOf(\Graphpinator\Normalizer\Selection\InlineFragment::class, $operation->getSelections()->offsetGet(1));
+        self::assertSame('fieldListInt', $operation->getSelections()->offsetGet(1)->getSelections()->offsetGet(0)->getName());
+        self::assertCount(1, $operation->getSelections()->offsetGet(1)->getDirectives());
+        self::assertArrayHasKey(0, $operation->getSelections()->offsetGet(1)->getDirectives());
         self::assertInstanceOf(
             \Graphpinator\Directive\Spec\SkipDirective::class,
-            $operation->getFields()->offsetGet(1)->getDirectives()->offsetGet(0)->getDirective(),
+            $operation->getSelections()->offsetGet(1)->getDirectives()->offsetGet(0)->getDirective(),
+        );
+
+        self::assertArrayHasKey(2, $operation->getSelections());
+        self::assertInstanceOf(\Graphpinator\Normalizer\Selection\FragmentSpread::class, $operation->getSelections()->offsetGet(2));
+        self::assertSame('fieldList', $operation->getSelections()->offsetGet(2)->getSelections()->offsetGet(0)->getName());
+        self::assertCount(1, $operation->getSelections()->offsetGet(2)->getDirectives());
+        self::assertArrayHasKey(0, $operation->getSelections()->offsetGet(2)->getDirectives());
+        self::assertInstanceOf(
+            \Graphpinator\Directive\Spec\IncludeDirective::class,
+            $operation->getSelections()->offsetGet(2)->getDirectives()->offsetGet(0)->getDirective(),
         );
     }
 

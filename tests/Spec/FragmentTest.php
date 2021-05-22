@@ -148,81 +148,44 @@ final class FragmentTest extends \PHPUnit\Framework\TestCase
         return [
             [
                 Json::fromNative((object) [
-                    'query' => 'query queryName { fieldUnion { ... on Abc { fieldXyz { __typename ... on Abc { __typename } } } } }',
+                    'query' => 'query { fieldUnion { ... on Abc { fieldXyz { __typename ... on Xyz { __typename } } } } }',
                 ]),
                 Json::fromNative((object) ['data' => ['fieldUnion' => ['fieldXyz' => ['__typename' => 'Xyz']]]]),
             ],
             [
                 Json::fromNative((object) [
-                    'query' => 'query queryName { fieldUnion { ... on Abc { fieldXyz { __typename ... on Xyz { __typename name } } } } }',
+                    'query' => 'query { fieldUnion { ... on Abc { fieldXyz { __typename ... on Xyz { __typename name } } } } }',
                 ]),
                 Json::fromNative((object) ['data' => ['fieldUnion' => ['fieldXyz' => ['__typename' => 'Xyz', 'name' => 'Test 123']]]]),
             ],
             [
                 Json::fromNative((object) [
-                    'query' => 'query queryName { fieldUnion { ... on Abc { fieldXyz { ... on Xyz { __typename name } __typename } } } }',
+                    'query' => 'query { fieldUnion { ... on Abc { fieldXyz { ... on Xyz { __typename name } __typename } } } }',
                 ]),
                 Json::fromNative((object) ['data' => ['fieldUnion' => ['fieldXyz' => ['__typename' => 'Xyz', 'name' => 'Test 123']]]]),
             ],
             [
                 Json::fromNative((object) [
-                    'query' => 'query queryName { fieldUnion { ... on Abc { fieldXyz { ... on TestInterface { __typename name } } } } }',
+                    'query' => 'query { fieldUnion { ... on Abc { 
+                        fieldXyz { __typename } ... on Abc { fieldXyz { ... on Xyz { __typename name } } } 
+                     }}}',
                 ]),
                 Json::fromNative((object) ['data' => ['fieldUnion' => ['fieldXyz' => ['__typename' => 'Xyz', 'name' => 'Test 123']]]]),
             ],
             [
                 Json::fromNative((object) [
-                    'query' => 'query queryName { fieldUnion { ... on Abc { 
-                    fieldXyz { ... on Xyz { __typename name } ... on TestInterface { __typename name } } 
-                    } } }',
-                ]),
-                Json::fromNative((object) ['data' => ['fieldUnion' => ['fieldXyz' => ['__typename' => 'Xyz', 'name' => 'Test 123']]]]),
-            ],
-            [
-                Json::fromNative((object) [
-                    'query' => 'query queryName { fieldUnion { ... on Abc { 
-                    fieldXyz { ... on TestInterface { __typename name } ... on Xyz { __typename name } } 
-                    } } }',
-                ]),
-                Json::fromNative((object) ['data' => ['fieldUnion' => ['fieldXyz' => ['__typename' => 'Xyz', 'name' => 'Test 123']]]]),
-            ],
-            [
-                Json::fromNative((object) [
-                    'query' => 'query queryName { fieldUnion { ... on Abc { 
-                     fieldXyz { __typename } ... on Abc { fieldXyz { ... on Xyz { __typename name } } } 
-                     } } }',
-                ]),
-                Json::fromNative((object) ['data' => ['fieldUnion' => ['fieldXyz' => ['__typename' => 'Xyz', 'name' => 'Test 123']]]]),
-            ],
-            [
-                Json::fromNative((object) [
-                    'query' => 'query queryName { fieldUnion { ... on Abc { 
-                    fieldXyz { __typename ... on Xyz { __typename name } ... on Abc { __typename } } 
-                    } } }',
-                ]),
-                Json::fromNative((object) ['data' => ['fieldUnion' => ['fieldXyz' => ['__typename' => 'Xyz', 'name' => 'Test 123']]]]),
-            ],
-            [
-                Json::fromNative((object) [
-                    'query' => 'query queryName { fieldUnion { ... on Abc { 
-                    fieldXyz { name: __typename ... on Xyz { __typename } } 
-                    } } }',
+                    'query' => 'query { fieldUnion { ... on Abc { 
+                        fieldXyz { name: __typename ... on Xyz { __typename } } 
+                    }}}',
                 ]),
                 Json::fromNative((object) ['data' => ['fieldUnion' => ['fieldXyz' => ['name' => 'Xyz', '__typename' => 'Xyz']]]]),
             ],
             [
                 Json::fromNative((object) [
-                    'query' => 'query queryName { fieldUnion { ... on Abc { 
-                    fieldXyz(arg1: 456) { name } ... on Abc { fieldXyz(arg1: 456) { __typename } } 
-                    } } }',
-                ]),
-                Json::fromNative((object) ['data' => ['fieldUnion' => ['fieldXyz' => ['name' => 'Test 456', '__typename' => 'Xyz']]]]),
-            ],
-            [
-                Json::fromNative((object) [
-                    'query' => 'query queryName { fieldUnion { ... on Abc { 
-                    fieldXyz(arg1: 456) { name } ... on Abc { fieldXyz(arg1: 456) { name } } 
-                    } } }',
+                    'query' => 'query { fieldUnion { 
+                        ... on Abc { fieldXyz(arg1: 456) { name } }
+                        ... on Abc { fieldXyz(arg1: 456) { name } } 
+                    }}',
                 ]),
                 Json::fromNative((object) ['data' => ['fieldUnion' => ['fieldXyz' => ['name' => 'Test 456']]]]),
             ],

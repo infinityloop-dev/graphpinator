@@ -192,7 +192,7 @@ final class ErrorsTest extends \PHPUnit\Framework\TestCase
                 ]),
                 Json::fromNative((object) ['errors' => [[
                     'message' => 'Invalid fragment type condition. ("InterfaceAbc" is not instance of "InterfaceEfg").',
-                    'path' => ['queryName <operation>', 'fieldFragment <field>', 'interfaceEfgFragment <fragment spread>'],
+                    'path' => ['queryName <operation>', 'fieldFragment <field>', 'interfaceEfgFragment <fragment spread>', '<inline fragment>'],
                 ]]]),
             ],
             [
@@ -294,6 +294,17 @@ final class ErrorsTest extends \PHPUnit\Framework\TestCase
                     'errors' => [[
                         'message' => 'Invalid value resolved for type "Int" - got "invalid".',
                         'path' => ['queryName <operation>', 'var1 <variable>', '1 <list index>'],
+                    ]],
+                ]),
+            ],
+            [
+                Json::fromNative((object) [
+                    'query' => 'query { fieldUnion { ... on Abc { fieldXyz { ... on TestInterface { __typename name } } } } }',
+                ]),
+                Json::fromNative((object) [
+                    'errors' => [[
+                        'message' => 'Invalid fragment type condition. ("TestInterface" is not instance of "Xyz").',
+                        'path' => [' <operation>', 'fieldUnion <field>', '<inline fragment>', 'fieldXyz <field>', '<inline fragment>'],
                     ]],
                 ]),
             ],

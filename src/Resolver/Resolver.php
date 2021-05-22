@@ -30,7 +30,7 @@ final class Resolver
         }
 
         $resolver = new \Graphpinator\Resolver\ResolveVisitor(
-            $operation->getFields(),
+            $operation->getSelections(),
             new \Graphpinator\Value\TypeIntermediateValue($operation->getRootObject(), null),
         );
 
@@ -58,7 +58,7 @@ final class Resolver
         }
 
         $resolver = new \Graphpinator\Resolver\ResolveVisitor(
-            $operation->getFields(),
+            $operation->getSelections(),
             new \Graphpinator\Value\TypeIntermediateValue($operation->getRootObject(), null),
         );
 
@@ -86,7 +86,7 @@ final class Resolver
         }
 
         $resolver = new \Graphpinator\Resolver\ResolveVisitor(
-            $operation->getFields(),
+            $operation->getSelections(),
             new \Graphpinator\Value\TypeIntermediateValue($operation->getRootObject(), null),
         );
 
